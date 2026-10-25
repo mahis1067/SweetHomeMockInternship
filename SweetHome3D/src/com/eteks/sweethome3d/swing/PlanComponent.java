@@ -251,7 +251,7 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
     public String toString() {
       return this.name;
     }
-  };
+  }
 
   private static final float    MARGIN = 40;
 
@@ -2008,6 +2008,37 @@ public class PlanComponent extends JComponent implements PlanView, Scrollable, P
    * that makes it fill <code>pageFormat</code> imageable size if this attribute is <code>null</code>.
    */
   public int print(Graphics g, PageFormat pageFormat, int pageIndex) {
+    Level selectedLevel = this.home.getSelectedLevel();
+    if (this.home.getLevels().isEmpty()) {
+      return printPage(g, pageFormat, pageIndex);
+    }
+    Graphics dummyGraphics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB).getGraphics();
+    try {
+      int page = 0;
+      for (Level level : this.home.getLevels()) {
+        if (level.isViewable()) {
+          // A plan component paints the selected level, so enumerate each level
+          // and translate the global print page index to that level's page index
+          this.home.setSelectedLevel(level);
+          int levelPage = 0;
+          while (printPage(dummyGraphics, pageFormat, levelPage) == PAGE_EXISTS) {
+            if (page == pageIndex) {
+              return printPage(g, pageFormat, levelPage);
+            }
+            page++;
+            levelPage++;
+          }
+        }
+      }
+      return NO_SUCH_PAGE;
+    } finally {
+      // Level selection is temporary print state and must be invisible to the user
+      this.home.setSelectedLevel(selectedLevel);
+      dummyGraphics.dispose();
+    }
+  }
+
+  private int printPage(Graphics g, PageFormat pageFormat, int pageIndex) {
     List<Selectable> printedItems = getPaintedItems(); 
     Rectangle2D printedItemBounds = getItemsBounds(g, printedItems);
     if (printedItemBounds != null) {

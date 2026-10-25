@@ -182,6 +182,17 @@ public class HomePrintableComponent extends JComponent implements Printable {
    * Prints a given <code>page</code>.
    */
   public int print(Graphics g, PageFormat pageFormat, int page) throws PrinterException {
+    Level selectedLevel = this.home.getSelectedLevel();
+    try {
+      // Plan rendering temporarily changes the selected level for each printed plan page
+      return printPage(g, pageFormat, page);
+    } finally {
+      // Printing must not change the level selected in the application's plan view
+      this.home.setSelectedLevel(selectedLevel);
+    }
+  }
+
+  private int printPage(Graphics g, PageFormat pageFormat, int page) throws PrinterException {
     // Check current thread isn't interrupted
     if (Thread.interrupted()) {
       throw new InterruptedPrinterException();
@@ -351,15 +362,14 @@ public class HomePrintableComponent extends JComponent implements Printable {
           && (homePrint == null
               || homePrint.isPlanPrinted()
               || homePrint.isView3DPrinted())) {
-        final Level selectedLevel = home.getSelectedLevel();
+        // The printed table represents the whole home, unlike the on-screen level-filtered view.
         furnitureTable = (FurnitureTable)furnitureView;
         furnitureFilter = furnitureTable.getFurnitureFilter();
         furnitureTable.setFurnitureFilter(new FurnitureTable.FurnitureFilter() {
             public boolean include(Home home, HomePieceOfFurniture piece) {
-              // Print only furniture at selected level when the plan or the 3D view is printed
+              // Print furniture on viewable levels when the plan or 3D view is printed
               return (furnitureFilter == null || furnitureFilter.include(home, piece))
-                  && piece.isAtLevel(selectedLevel)
-                  && (piece.getLevel() == null || piece.getLevel().isViewable());
+                && (piece.getLevel() == null || piece.getLevel().isViewable());
             }
           });
       } else {
